@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+venv/
+.env
+.env.*
+
+# VSCode
+.vscode/
+
+# Data and assets
+/data/
+/assets/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Test
+/tests/__pycache__/
+
+# Copilot
+.copilot/
