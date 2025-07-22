@@ -4,7 +4,7 @@ Search and filter functionality for interview questions.
 import json
 import os
 
-from src.logging_utils import log_error
+from logging_utils import log_error
 
 
 def load_questions():
