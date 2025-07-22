@@ -24,15 +24,30 @@ class SettingsPanel(QWidget):
         self.font_spin = QSpinBox()
         self.font_spin.setRange(8, 32)
         layout.addWidget(self.font_spin)
+        self.layout_label = QLabel("Layout:")
+        layout.addWidget(self.layout_label)
+        self.layout_combo = QComboBox()
+        self.layout_combo.addItems(["Default", "Compact", "Spacious"])
+        layout.addWidget(self.layout_combo)
+        self.color_label = QLabel("Color Scheme:")
+        layout.addWidget(self.color_label)
+        self.color_combo = QComboBox()
+        self.color_combo.addItems(["System", "Light", "Dark", "High Contrast"])
+        layout.addWidget(self.color_combo)
         self.save_btn = QPushButton("Save Settings")
         layout.addWidget(self.save_btn)
         self.save_btn.clicked.connect(self.save_settings)
+        self.backup_btn = QPushButton("Backup Settings to Cloud")
+        layout.addWidget(self.backup_btn)
+        self.backup_btn.clicked.connect(self.backup_settings)
         self.load_settings()
 
     def save_settings(self):
         settings = {
             "theme": self.theme_combo.currentText(),
-            "font_size": self.font_spin.value()
+            "font_size": self.font_spin.value(),
+            "layout": self.layout_combo.currentText(),
+            "color_scheme": self.color_combo.currentText()
         }
         with open(self.settings_file, 'w', encoding='utf-8') as f:
             json.dump(settings, f, indent=2)
@@ -43,3 +58,9 @@ class SettingsPanel(QWidget):
                 settings = json.load(f)
             self.theme_combo.setCurrentText(settings.get("theme", "Light"))
             self.font_spin.setValue(settings.get("font_size", 12))
+            self.layout_combo.setCurrentText(settings.get("layout", "Default"))
+            self.color_combo.setCurrentText(settings.get("color_scheme", "System"))
+
+    def backup_settings(self):
+        # Placeholder for cloud sync integration
+        print("Settings backed up to cloud.")

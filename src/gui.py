@@ -5,14 +5,18 @@ import json
 import os
 
 from PyQt5.QtGui import QColor, QFont, QTextCharFormat, QTextCursor
-from PyQt5.QtWidgets import (QLabel, QLineEdit, QMainWindow, QPushButton,
-                             QStackedWidget, QTextEdit, QVBoxLayout, QWidget)
+from PyQt5.QtWidgets import (QLabel, QLineEdit, QMainWindow, QMessageBox,
+                             QPushButton, QStackedWidget, QTextEdit,
+                             QVBoxLayout, QWidget)
 
 from search import search_questions
+from src.cloud_sync import CloudSync
 from src.cpp_questions import questions as cpp_questions
+from src.error_monitor import ErrorMonitor
 from src.java_questions import questions as java_questions
 from src.language_selector import LanguageSelector
 from src.logging_utils import log_error
+from src.realtime_analytics import RealTimeAnalyticsDashboard
 from src.settings import SettingsPanel
 
 
@@ -37,8 +41,12 @@ class InterviewApp(QMainWindow):
         self.search_bar.textChanged.connect(self.update_search_results)
         self.stacked = QStackedWidget()
         layout.addWidget(self.stacked)
-        self.init_navigation(layout)
+        self.settings_panel = None
+        self.analytics_window = None
+        self.error_monitor = None
+        self.cloud_sync = None
         self.questions = self.load_questions()
+        self.init_navigation(layout)
         self.init_sections()
         self.search_results_widget = QWidget()
         self.search_results_layout = QVBoxLayout(self.search_results_widget)
@@ -49,7 +57,8 @@ class InterviewApp(QMainWindow):
         Load interview questions from the data file or language module.
         """
         if language == 'Python':
-            path = os.path.join(os.path.dirname(__file__), '../data/questions.json')
+            base = os.path.dirname(__file__)
+            path = os.path.join(base, '../data/questions.json')
             with open(path, 'r', encoding='utf-8') as f:
                 return json.load(f)
         elif language == 'Java':
@@ -190,6 +199,15 @@ class InterviewApp(QMainWindow):
         self.settings_btn = QPushButton("Settings")
         layout.addWidget(self.settings_btn)
         self.settings_btn.clicked.connect(self.open_settings)
+        self.analytics_btn = QPushButton("Real-Time Analytics")
+        layout.addWidget(self.analytics_btn)
+        self.analytics_btn.clicked.connect(self.open_analytics)
+        self.error_btn = QPushButton("Error Monitor")
+        layout.addWidget(self.error_btn)
+        self.error_btn.clicked.connect(self.open_error_monitor)
+        self.cloud_btn = QPushButton("Cloud Sync")
+        layout.addWidget(self.cloud_btn)
+        self.cloud_btn.clicked.connect(self.open_cloud_sync)
 
     def open_settings(self):
         self.settings_panel = SettingsPanel()
@@ -244,3 +262,31 @@ class InterviewApp(QMainWindow):
                 code_btn.clicked.connect(lambda checked, t=code_text:
                     t.setVisible(True))
         return widget
+
+    def open_analytics(self):
+        """
+        Open the real-time analytics dashboard with error handling.
+        """
+        try:
+            self.analytics_window = RealTimeAnalyticsDashboard()
+            self.analytics_window.show()
+        except (RuntimeError, ImportError) as e:
+            log_error(f"Analytics dashboard error: {e}")
+            QMessageBox.critical(self, "Analytics Error", str(e))
+
+    def open_error_monitor(self):
+        self.error_monitor = ErrorMonitor()
+        # For demonstration, show errors in a message box
+        errors = self.error_monitor.get_errors()
+        msg = '\n'.join(errors) if errors else 'No errors reported.'
+        QMessageBox.information(self, "Error Monitor", msg)
+
+    def open_cloud_sync(self):
+        # Use a default progress file for demonstration
+        progress_file = os.path.join(
+            os.path.dirname(__file__), '../data/user_progress.json'
+        )
+        self.cloud_sync = CloudSync(progress_file)
+        self.cloud_sync.sync_to_cloud()
+        msg = "Progress synced to cloud."
+        QMessageBox.information(self, "Cloud Sync", msg)
