@@ -9,6 +9,11 @@ from PyQt5.QtWidgets import (QLabel, QLineEdit, QMainWindow, QPushButton,
                              QStackedWidget, QTextEdit, QVBoxLayout, QWidget)
 
 from search import search_questions
+from src.cpp_questions import questions as cpp_questions
+from src.java_questions import questions as java_questions
+from src.language_selector import LanguageSelector
+from src.logging_utils import log_error
+from src.settings import SettingsPanel
 
 
 class InterviewApp(QMainWindow):
@@ -39,14 +44,20 @@ class InterviewApp(QMainWindow):
         self.search_results_layout = QVBoxLayout(self.search_results_widget)
         self.stacked.addWidget(self.search_results_widget)
 
-    def load_questions(self):
+    def load_questions(self, language='Python'):
         """
-        Load interview questions from the data file.
+        Load interview questions from the data file or language module.
         """
-        path = os.path.join(os.path.dirname(__file__),
-            '../data/questions.json')
-        with open(path, 'r', encoding='utf-8') as f:
-            return json.load(f)
+        if language == 'Python':
+            path = os.path.join(os.path.dirname(__file__), '../data/questions.json')
+            with open(path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        elif language == 'Java':
+            return {'java': java_questions}
+        elif language == 'C++':
+            return {'cpp': cpp_questions}
+        else:
+            return {}
 
     def highlight_python_code(self, text_edit, code):
         """
@@ -113,48 +124,53 @@ class InterviewApp(QMainWindow):
         """
         Update the search results widget with filtered questions and answers.
         """
-        # Clear previous results
-        for i in reversed(range(self.search_results_layout.count())):
-            item = self.search_results_layout.itemAt(i)
-            if item is not None:
-                widget = item.widget()
-                if widget is not None:
-                    widget.setParent(None)
-        if text.strip():
-            results = search_questions(text)
-            for r in results:
-                q_label = QLabel(
-                    f"[{r['level'].capitalize()}] Q: {r['question']}")
-                self.search_results_layout.addWidget(q_label)
-                a_text = QTextEdit(r['answer'])
-                a_text.setReadOnly(True)
-                a_text.hide()
-                self.search_results_layout.addWidget(a_text)
-                a_btn = QPushButton("Show Answer")
-                self.search_results_layout.addWidget(a_btn)
-                a_btn.clicked.connect(lambda checked, t=a_text:
-                    t.setVisible(True))
-                # Show code sample
-                if 'code' in r:
-                    code_btn = QPushButton("Show Code Example")
-                    self.search_results_layout.addWidget(code_btn)
-                    code_text = QTextEdit()
-                    code_text.setReadOnly(True)
-                    code_text.hide()
-                    self.highlight_python_code(code_text, r['code'])
-                    self.search_results_layout.addWidget(code_text)
-                    code_btn.clicked.connect(lambda checked, t=code_text:
+        try:
+            # Clear previous results
+            for i in reversed(range(self.search_results_layout.count())):
+                item = self.search_results_layout.itemAt(i)
+                if item is not None:
+                    widget = item.widget()
+                    if widget is not None:
+                        widget.setParent(None)
+            if text.strip():
+                results = search_questions(text)
+                for r in results:
+                    q_label = QLabel(
+                        f"[{r['level'].capitalize()}] Q: {r['question']}")
+                    self.search_results_layout.addWidget(q_label)
+                    a_text = QTextEdit(r['answer'])
+                    a_text.setReadOnly(True)
+                    a_text.hide()
+                    self.search_results_layout.addWidget(a_text)
+                    a_btn = QPushButton("Show Answer")
+                    self.search_results_layout.addWidget(a_btn)
+                    a_btn.clicked.connect(lambda checked, t=a_text:
                         t.setVisible(True))
-            self.stacked.setCurrentWidget(self.search_results_widget)
-        else:
-            self.stacked.setCurrentIndex(0)
+                    # Show code sample
+                    if 'code' in r:
+                        code_btn = QPushButton("Show Code Example")
+                        self.search_results_layout.addWidget(code_btn)
+                        code_text = QTextEdit()
+                        code_text.setReadOnly(True)
+                        code_text.hide()
+                        self.highlight_python_code(code_text, r['code'])
+                        self.search_results_layout.addWidget(code_text)
+                        code_btn.clicked.connect(lambda checked, t=code_text:
+                            t.setVisible(True))
+                self.stacked.setCurrentWidget(self.search_results_widget)
+            else:
+                self.stacked.setCurrentIndex(0)
+        except Exception as e:
+            log_error(f"Search error: {e}")
 
     def init_navigation(self, layout):
         """
-        Initialize navigation buttons for difficulty sections.
+        Initialize navigation buttons for difficulty sections and language selector.
         """
         self.nav_label = QLabel("Select Section:")
         layout.addWidget(self.nav_label)
+        self.language_selector = LanguageSelector()
+        layout.addWidget(self.language_selector)
         self.btn_beginner = QPushButton("Beginner")
         self.btn_intermediate = QPushButton("Intermediate")
         self.btn_advanced = QPushButton("Advanced")
@@ -170,6 +186,25 @@ class InterviewApp(QMainWindow):
         self.btn_advanced.clicked.connect(
             lambda: self.stacked.setCurrentIndex(2)
         )
+        self.language_selector.combo.currentTextChanged.connect(self.change_language)
+        self.settings_btn = QPushButton("Settings")
+        layout.addWidget(self.settings_btn)
+        self.settings_btn.clicked.connect(self.open_settings)
+
+    def open_settings(self):
+        self.settings_panel = SettingsPanel()
+        self.settings_panel.show()
+
+    def change_language(self, language):
+        """
+        Change the language of the interview questions displayed.
+        """
+        try:
+            self.questions = self.load_questions(language)
+            self.stacked.clear()
+            self.init_sections()
+        except Exception as e:
+            log_error(f"Language change error: {e}")
 
     def init_sections(self):
         """
